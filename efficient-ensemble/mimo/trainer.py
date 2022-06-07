@@ -61,7 +61,7 @@ parser.add_argument('--save-every', dest='save_every',
                     type=int, default=10)
 
 #mimo
-parser.add_argument('--mimo', dest='ensemble_num', type=int, default=2)
+parser.add_argument('--mimo', dest='mimo', type=int, default=2)
 
 best_prec1 = 0
 

@@ -13,6 +13,8 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import resnet
 
+import wandb
+
 model_names = sorted(name for name in resnet.__dict__
     if name.islower() and not name.startswith("__")
                      and name.startswith("resnet")
@@ -59,9 +61,12 @@ best_prec1 = 0
 
 
 def main():
+    wandb.init()
+
     global args, best_prec1
     args = parser.parse_args()
 
+    wandb.config.update(args)
 
     # Check the save_dir exists or not
     if not os.path.exists(args.save_dir):
@@ -69,6 +74,7 @@ def main():
 
     model = torch.nn.DataParallel(resnet.__dict__[args.arch]())
     model.cuda()
+    wandb.watch(model)
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -256,6 +262,12 @@ def validate(val_loader, model, criterion):
                       'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
                           i, len(val_loader), batch_time=batch_time, loss=losses,
                           top1=top1))
+                wandb.log({
+                    "batch_time" : batch_time.avg,
+                    "Loss" : losses.avg,
+                    "Prec top-1" : top1.avg
+                })
+
 
     print(' * Prec@1 {top1.avg:.3f}'
           .format(top1=top1))

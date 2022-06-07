@@ -120,6 +120,8 @@ class ResNet_mimo(nn.Module):
         mimo_out = []
         for i in range(self.mimo):
             mimo_out.append(self.linear[i](out))
+        
+        mimo_out = torch.stack(mimo_out, dim=-1)
         return mimo_out
 
 

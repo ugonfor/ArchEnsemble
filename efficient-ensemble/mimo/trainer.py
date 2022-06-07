@@ -14,7 +14,6 @@ import torchvision.datasets as datasets
 import resnet
 
 import wandb
-from mimo_dataset import MIMOCollator
 
 
 model_names = sorted(name for name in resnet.__dict__
@@ -61,26 +60,31 @@ parser.add_argument('--save-every', dest='save_every',
                     type=int, default=10)
 
 #mimo
+from mimo_dataset import MIMOCifar10, MIMOCollator
 parser.add_argument('--mimo', dest='mimo', type=int, default=2)
+is_local = True
+collator = MIMOCollator()
+is_wandb = False
 
 best_prec1 = 0
 
 
+
 def main():
-    wandb.init()
+    if is_wandb: wandb.init()
 
     global args, best_prec1
     args = parser.parse_args()
 
-    wandb.config.update(args)
+    if is_wandb: wandb.config.update(args)
 
     # Check the save_dir exists or not
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
 
     model = torch.nn.DataParallel(resnet.__dict__[args.arch](args.mimo))
-    model.cuda()
-    wandb.watch(model)
+    model.cpu() if is_local else model.cuda()
+    if is_wandb: wandb.watch(model)
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -101,27 +105,26 @@ def main():
                                      std=[0.229, 0.224, 0.225])
 
     train_loader = torch.utils.data.DataLoader(
-        datasets.CIFAR10(root='./data', train=True, transform=transforms.Compose([
+        MIMOCifar10(root='./data', train=True, transform=transforms.Compose([
             transforms.RandomHorizontalFlip(),
             transforms.RandomCrop(32, 4),
             transforms.ToTensor(),
             normalize,
-        ]), download=True),
+        ]), download=True, mimo=args.mimo),
         batch_size=args.batch_size, shuffle=True,
-        num_workers=args.workers, pin_memory=True,
-        collate_fn=MIMOCollator)
+        num_workers=args.workers, pin_memory=True)
+        #,collate_fn=collator)
 
     val_loader = torch.utils.data.DataLoader(
-        datasets.CIFAR10(root='./data', train=False, transform=transforms.Compose([
+        MIMOCifar10(root='./data', train=False, transform=transforms.Compose([
             transforms.ToTensor(),
             normalize,
-        ])),
+        ]), mimo=args.mimo),
         batch_size=128, shuffle=False,
-        num_workers=args.workers, pin_memory=True,
-        collate_fn=MIMOCollator)
+        num_workers=args.workers, pin_memory=True)
 
     # define loss function (criterion) and optimizer
-    criterion = nn.CrossEntropyLoss().cuda()
+    criterion = nn.CrossEntropyLoss().cpu() if is_local else nn.CrossEntropyLoss().cuda()
 
     if args.half:
         model.half()
@@ -190,14 +193,16 @@ def train(train_loader, model, criterion, optimizer, epoch):
         # measure data loading time
         data_time.update(time.time() - end)
 
-        target = target.cuda()
-        input_var = input.cuda()
+        target = target.cpu() if is_local else target.cuda()
+        #print(target)
+        input_var = input.cpu() if is_local else input.cuda()
         target_var = target
         if args.half:
             input_var = input_var.half()
 
         # compute output
         output = model(input_var)
+        #print(output.shape)
         loss = criterion(output, target_var)
 
         # compute gradient and do SGD step
@@ -208,7 +213,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
         output = output.float()
         loss = loss.float()
         # measure accuracy and record loss
-        prec1 = accuracy(output.data, target)[0]
+        prec1 = accuracy(output.data, target, mimo=args.mimo)[0]
         losses.update(loss.item(), input.size(0))
         top1.update(prec1.item(), input.size(0))
 
@@ -240,9 +245,9 @@ def validate(val_loader, model, criterion):
     end = time.time()
     with torch.no_grad():
         for i, (input, target) in enumerate(val_loader):
-            target = target.cuda()
-            input_var = input.cuda()
-            target_var = target.cuda()
+            target = target.cpu() if is_local else target.cuda()
+            input_var = input.cpu() if is_local else input.cuda()
+            target_var = target.cpu() if is_local else target.cuda()
 
             if args.half:
                 input_var = input_var.half()
@@ -255,7 +260,7 @@ def validate(val_loader, model, criterion):
             loss = loss.float()
 
             # measure accuracy and record loss
-            prec1 = accuracy(output.data, target)[0]
+            prec1 = accuracy(output.data, target, mimo=args.mimo)[0]
             losses.update(loss.item(), input.size(0))
             top1.update(prec1.item(), input.size(0))
 
@@ -270,11 +275,11 @@ def validate(val_loader, model, criterion):
                       'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
                           i, len(val_loader), batch_time=batch_time, loss=losses,
                           top1=top1))
-                wandb.log({
-                    "batch_time" : batch_time.avg,
-                    "Loss" : losses.avg,
-                    "Prec top-1" : top1.avg
-                })
+                if is_wandb: wandb.log({
+                        "batch_time" : batch_time.avg,
+                        "Loss" : losses.avg,
+                        "Prec top-1" : top1.avg
+                    })
 
 
     print(' * Prec@1 {top1.avg:.3f}'
@@ -306,10 +311,14 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-def accuracy(output, target, topk=(1,)):
+def accuracy(output, target, topk=(1,), mimo=1):
     """Computes the precision@k for the specified values of k"""
     maxk = max(topk)
     batch_size = target.size(0)
+    
+    if mimo != 1:
+        target = target.reshape(-1)  
+        output = output.transpose(1,2).reshape(batch_size * mimo, -1)
 
     _, pred = output.topk(maxk, 1, True, True)
     pred = pred.t()

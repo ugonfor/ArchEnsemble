@@ -259,13 +259,19 @@ def validate(val_loader, model, criterion, mimo=1):
 
             # compute output
             output = model(input_var)
+            output = torch.mean(output, dim=-1)
+
+            output = output.unsqueeze(dim=-1) # for accuracy
+            target_var = target_var.unsqueeze(dim=-1) # for accuracy
+            target = target.unsqueeze(dim=-1)
+
             loss = criterion(output, target_var)
 
             output = output.float()
             loss = loss.float()
 
             # measure accuracy and record loss
-            prec1 = accuracy(output.data, target, mimo=args.mimo)[0]
+            prec1 = accuracy(output.data, target)[0]
             losses.update(loss.item(), input.size(0))
             top1.update(prec1.item(), input.size(0))
 
@@ -321,11 +327,12 @@ def accuracy(output, target, topk=(1,), mimo=1):
     maxk = max(topk)
     batch_size = target.size(0)
     
-    if mimo != 1:
-        target = target.reshape(-1)  
-        output = output.transpose(1,2).reshape(batch_size * mimo, -1)
-        batch_size = target.size(0)
-        
+    
+    target = target.reshape(-1)  
+    output = output.transpose(1,2).reshape(batch_size * mimo, -1)
+    batch_size = target.size(0)
+    
+
     _, pred = output.topk(maxk, 1, True, True)
     pred = pred.t()
     correct = pred.eq(target.view(1, -1).expand_as(pred))

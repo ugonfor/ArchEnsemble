@@ -116,10 +116,10 @@ def main():
         #,collate_fn=collator)
 
     val_loader = torch.utils.data.DataLoader(
-        MIMOCifar10(root='./data', train=False, transform=transforms.Compose([
+        datasets.CIFAR10(root='./data', train=False, transform=transforms.Compose([
             transforms.ToTensor(),
             normalize,
-        ]), mimo=args.mimo),
+        ])),
         batch_size=128, shuffle=False,
         num_workers=args.workers, pin_memory=True)
 
@@ -145,7 +145,7 @@ def main():
 
 
     if args.evaluate:
-        validate(val_loader, model, criterion)
+        validate(val_loader, model, criterion, args.mimo)
         return
 
     for epoch in range(args.start_epoch, args.epochs):
@@ -156,7 +156,7 @@ def main():
         lr_scheduler.step()
 
         # evaluate on validation set
-        prec1 = validate(val_loader, model, criterion)
+        prec1 = validate(val_loader, model, criterion, args.mimo)
 
         # remember best prec@1 and save checkpoint
         is_best = prec1 > best_prec1
@@ -231,7 +231,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
                       data_time=data_time, loss=losses, top1=top1))
 
 
-def validate(val_loader, model, criterion):
+def validate(val_loader, model, criterion, mimo=1):
     """
     Run evaluation
     """
@@ -251,6 +251,10 @@ def validate(val_loader, model, criterion):
 
             if args.half:
                 input_var = input_var.half()
+
+            # for mimo
+            input_vars = [input_var.clone().detach() for _ in range(mimo)]
+            input_var = torch.cat(input_vars, dim=0)
 
             # compute output
             output = model(input_var)

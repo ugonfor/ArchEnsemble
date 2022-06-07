@@ -65,7 +65,7 @@ parser.add_argument('--mimo', dest='mimo', type=int, default=2)
 device = 'cpu'
 collator = MIMOCollator()
 is_wandb = False
-print("CHECK config [ device : {device}, is_wandb : {is_wandb}]")
+print(f"CHECK config [ device : {device}, is_wandb : {is_wandb}]")
 
 best_prec1 = 0
 

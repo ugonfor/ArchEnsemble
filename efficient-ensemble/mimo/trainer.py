@@ -62,7 +62,7 @@ parser.add_argument('--save-every', dest='save_every',
 #mimo
 from mimo_dataset import MIMOCifar10, MIMOCollator
 parser.add_argument('--mimo', dest='mimo', type=int, default=2)
-is_local = True
+device = 'cpu'
 collator = MIMOCollator()
 is_wandb = False
 
@@ -83,7 +83,7 @@ def main():
         os.makedirs(args.save_dir)
 
     model = torch.nn.DataParallel(resnet.__dict__[args.arch](args.mimo))
-    model.cpu() if is_local else model.cuda()
+    model.to(device)
     if is_wandb: wandb.watch(model)
 
     # optionally resume from a checkpoint
@@ -124,7 +124,7 @@ def main():
         num_workers=args.workers, pin_memory=True)
 
     # define loss function (criterion) and optimizer
-    criterion = nn.CrossEntropyLoss().cpu() if is_local else nn.CrossEntropyLoss().cuda()
+    criterion = nn.CrossEntropyLoss().to(device)
 
     if args.half:
         model.half()
@@ -193,9 +193,9 @@ def train(train_loader, model, criterion, optimizer, epoch):
         # measure data loading time
         data_time.update(time.time() - end)
 
-        target = target.cpu() if is_local else target.cuda()
+        target = target.to(device)
         #print(target)
-        input_var = input.cpu() if is_local else input.cuda()
+        input_var = input.to(device)
         target_var = target
         if args.half:
             input_var = input_var.half()
@@ -245,9 +245,9 @@ def validate(val_loader, model, criterion):
     end = time.time()
     with torch.no_grad():
         for i, (input, target) in enumerate(val_loader):
-            target = target.cpu() if is_local else target.cuda()
-            input_var = input.cpu() if is_local else input.cuda()
-            target_var = target.cpu() if is_local else target.cuda()
+            target = target.to(device)
+            input_var = input.to(device)
+            target_var = target.to(device)
 
             if args.half:
                 input_var = input_var.half()

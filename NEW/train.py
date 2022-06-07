@@ -27,6 +27,8 @@ def main(args):
     wandb.init()
     config = Config(ensemble_num=args.ensemble_num, num_epochs=args.epoch)
     wandb.config.update(args)
+    wandb.run.name = f'{args.model} {args.dataset} / mimo: {args.ensemble_num}'
+
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

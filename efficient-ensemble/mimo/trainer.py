@@ -319,7 +319,8 @@ def accuracy(output, target, topk=(1,), mimo=1):
     if mimo != 1:
         target = target.reshape(-1)  
         output = output.transpose(1,2).reshape(batch_size * mimo, -1)
-
+        batch_size = target.size(0)
+        
     _, pred = output.topk(maxk, 1, True, True)
     pred = pred.t()
     correct = pred.eq(target.view(1, -1).expand_as(pred))

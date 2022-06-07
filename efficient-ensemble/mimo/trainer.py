@@ -65,6 +65,7 @@ parser.add_argument('--mimo', dest='mimo', type=int, default=2)
 device = 'cpu'
 collator = MIMOCollator()
 is_wandb = False
+print("CHECK config [ device : {device}, is_wandb : {is_wandb}]")
 
 best_prec1 = 0
 
@@ -254,7 +255,7 @@ def validate(val_loader, model, criterion, mimo=1):
 
             # for mimo
             input_vars = [input_var.clone().detach() for _ in range(mimo)]
-            input_var = torch.cat(input_vars, dim=0)
+            input_var = torch.cat(input_vars, dim=1) # channel dimension
 
             # compute output
             output = model(input_var)

@@ -1,4 +1,7 @@
 pretrained_models
+data
+wandb
 
 # python
 __pycache__
+

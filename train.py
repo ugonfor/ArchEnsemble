@@ -4,18 +4,19 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
-from mimo.config import Config
-from mimo.model import MIMOModel
-from mimo.trainer import MIMOTrainer
+from ArchEnsemble.config import Config
+from ArchEnsemble.model import ArchEnsemble
+from ArchEnsemble.trainer import Trainer
+
+from ArchEnsemble.cnn import CNNLayer
+from ArchEnsemble._resnet import ResNet, BasicBlock
 
 import torchvision
 import wandb
 
-from mimo.cnn import CNNLayer
-from mimo._resnet import ResNet, BasicBlock
 
 
-parser = ArgumentParser("MIMO Training")
+parser = ArgumentParser()
 parser.add_argument("--ensemble-num", type=int, default=3)
 parser.add_argument("--model", default='simplecnn')
 parser.add_argument("--dataset", default='cifar10')
@@ -27,7 +28,7 @@ def main(args):
     wandb.init()
     config = Config(ensemble_num=args.ensemble_num, num_epochs=args.epoch)
     wandb.config.update(args)
-    wandb.run.name = f'{args.model} {args.dataset} / mimo: {args.ensemble_num}'
+    wandb.run.name = f'{args.model} {args.dataset} / ensemble : {args.ensemble_num}'
 
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -88,9 +89,9 @@ def main(args):
 
 
 
-    model = MIMOModel(backbone, config.ensemble_num).to(device)
+    model = ArchEnsemble(backbone, config.ensemble_num).to(device)
     wandb.watch(model)
-    trainer = MIMOTrainer(config, model, train_dataloaders, test_dataloader, device)
+    trainer = Trainer(config, model, train_dataloaders, test_dataloader, device)
     trainer.train()
 
 

@@ -11,7 +11,7 @@ from mimo.config import Config
 
 import wandb
 
-class MIMOTrainer:
+class Trainer:
     def __init__(
         self,
         config: Config,

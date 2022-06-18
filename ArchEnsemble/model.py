@@ -3,9 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class MIMOModel(nn.Module):
+class ArchEnsemble(nn.Module):
     def __init__(self, backbone, ensemble_num: int = 3):
-        super(MIMOModel, self).__init__()
+        super(ArchEnsemble, self).__init__()
         self.cnn_layer = backbone
         self.ensemble_num = ensemble_num
         self.last_head = nn.Linear(128, 10 * ensemble_num)
@@ -23,3 +23,7 @@ class MIMOModel(nn.Module):
         output = torch.diagonal(output, offset=0, dim1=0, dim2=2).permute(2, 0, 1)
         output = F.log_softmax(output, dim=-1)
         return output
+
+
+## change the model output path
+# like google's inceptron... multi output!
